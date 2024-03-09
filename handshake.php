@@ -1,7 +1,7 @@
 <?php
 header("Content-Type: application/json");
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST');
+header('Access-Control-Allow-Methods: POST');
 header("Access-Control-Allow-Headers: X-Requested-With");
 
 $_POST = json_decode(file_get_contents("php://input"), true);
@@ -12,11 +12,12 @@ if (!isset($_POST['userName']) || empty($_POST['userName'])) {
 }
 $userName = $_POST['userName'];
 
-$hasToken = false;
+$userToken = '';
 if (isset($_POST['userToken']) && !empty($_POST['userToken'])) {
-    $hasToken = true;
+    $userToken = $_POST['userToken'];
 }
 
+require_once('verifyToken.php');
 function getRandomStringRandomInt($length = 16)
 {
     $stringSpace = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -36,38 +37,42 @@ $data = array();
 //      The room id should also be stored in the correct memcached user profile
 
 $mdUsersData = $md->get('usersData');
+if (empty($mdUsersData)) {
+    //no profiles exist
+    if (empty($userToken))
+        $userToken = getRandomStringRandomInt(8);
+    $md->set('usersData', array($userName => array('userToken' => $userToken)));
+    $data['status'] = 200;
+    $data['userToken'] = $userToken;
+    $data['message'] = "No matching profile exists, created a new one - Successful handshake.";
+    die(json_encode($data));
+}
 
-if (array_key_exists($userName, $mdUsersData)) {
-    //profile with that name exists
-    if (!$hasToken) {
-        //profile for this user already exists - send retry status
-        $data['status'] = 401;
-        $data['message'] = "Profile already exists for this user - Try different name.";
-        die(json_encode($data));
-    }
-    $userToken = $_POST['userToken'];
-    $mdUserData = $mdUsersData[$userName];
-    if ($mdUserData['userToken'] == $userToken) {
+$verifyCode = verifyToken($mdUsersData, $userName, $userToken);
+switch ($verifyCode) {
+    case 201:
         //handshaking user matches the profile
         $data['status'] = 200;
         $data['userToken'] = $userToken;
         $data['message'] = "Found existing profile - Successful handshake.";
         die(json_encode($data));
-    } else {
-        //handshaking userToken doesn't match the profile
-        $data['status'] = 402;
-        $data['message'] = "Error: userToken doesn't or the userToken wasn't sent.";
+        break;
+
+    case 401:
+        //profile found - token doesnt match
+        $data['status'] = 401;
+        $data['message'] = "Token doesn't match for the existing profile.";
         die(json_encode($data));
-    }
-} else {
-    //no such profile exists - create new profile
-    $userToken = getRandomStringRandomInt(8);
-    $mdUsersData[$userName] = array('userToken' => $userToken);
-    $md->set('usersData', $mdUsersData, 3600);
+        break;
 
-    $data['status'] = 200;
-    $data['userToken'] = $userToken;
-    $data['message'] = "No matching profile exists, created a new one - Successful handshake.";
-
-    die(json_encode($data));
+    case 404:
+        //no such profile exists - create new profile
+        if (empty($userToken)) $userToken = getRandomStringRandomInt(8);
+        $mdUsersData[$userName] = array('userToken' => $userToken);
+        $md->set('usersData', $mdUsersData, 3600);
+        $data['status'] = 200;
+        $data['userToken'] = $userToken;
+        $data['message'] = "No matching profile exists, created a new one - Successful handshake.";
+        die(json_encode($data));
+        break;
 }
