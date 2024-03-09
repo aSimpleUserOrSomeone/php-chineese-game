@@ -32,27 +32,42 @@ $md = new Memcached;
 $md->addServer("localhost", 45111);
 $data = array();
 
+//TODO: Response should later return the room id for later quick in-game checks.
+//      The room id should also be stored in the correct memcached user profile
 
-if ($hasToken) {
-    $userToken = $_POST['userToken'];
-    $mdUsersData = $md->get('userData');
-    //check if user with that name has a profile stored
-    if (array_key_exists($userName, $mdUserData)) {
-        $mdUserData = $mdUserData[$userName];
-        if ($mdUserData['userToken'] == $userToken) {
-            //handshaking user matches the profile
-            $data['status'] = 200;
-            $data['userToken'] = $userToken;
-        } else {
-            //handshaking user doesn't matche the profile
-            $data['status'] = 401;
-            $data['message'] = "userToken doesn't match the userName";
-        }
-    } else {
-        //profile doesn't exist - new user
+$mdUsersData = $md->get('usersData');
+
+if (array_key_exists($userName, $mdUsersData)) {
+    //profile with that name exists
+    if (!$hasToken) {
+        //profile for this user already exists - send retry status
+        $data['status'] = 401;
+        $data['message'] = "Profile already exists for this user - Try different name.";
+        die(json_encode($data));
     }
+    $userToken = $_POST['userToken'];
+    $mdUserData = $mdUsersData[$userName];
+    if ($mdUserData['userToken'] == $userToken) {
+        //handshaking user matches the profile
+        $data['status'] = 200;
+        $data['userToken'] = $userToken;
+        $data['message'] = "Found existing profile - Successful handshake.";
+        die(json_encode($data));
+    } else {
+        //handshaking userToken doesn't match the profile
+        $data['status'] = 402;
+        $data['message'] = "Error: userToken doesn't or the userToken wasn't sent.";
+        die(json_encode($data));
+    }
+} else {
+    //no such profile exists - create new profile
+    $userToken = getRandomStringRandomInt(8);
+    $mdUsersData[$userName] = array('userToken' => $userToken);
+    $md->set('usersData', $mdUsersData, 3600);
+
+    $data['status'] = 200;
+    $data['userToken'] = $userToken;
+    $data['message'] = "No matching profile exists, created a new one - Successful handshake.";
+
+    die(json_encode($data));
 }
-
-
-$JSON_data = json_encode($data);
-die($JSON_data);
