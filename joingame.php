@@ -74,6 +74,7 @@ if (empty($mdGamesData) || !array_key_exists($gameId, $mdGamesData)) {
     $initialGameState = file_get_contents("../../initialGameState.json");
     $gameState = json_decode($initialGameState, true);
     $gameState['red']['userName'] = $userName;
+    $gameState['red']['isReady'] = false;
 
     $mdGamesData[$gameId] = $gameState;
     $md->set('gamesData', $mdGamesData, 5 * 3600);
@@ -91,14 +92,19 @@ if ((key_exists('red', $gameState) && $gameState['red']['userName'] == $userName
     die();
 }
 
-if (!key_exists('red', $gameState))
+if (!key_exists('red', $gameState)) {
     $gameState['red']['userName'] = $userName;
-else if (!key_exists('yellow', $gameState))
+    $gameState['red']['isReady'] = false;
+} else if (!key_exists('yellow', $gameState)) {
     $gameState['yellow']['userName'] = $userName;
-else if (!key_exists('blue', $gameState))
+    $gameState['yellow']['isReady'] = false;
+} else if (!key_exists('blue', $gameState)) {
     $gameState['blue']['userName'] = $userName;
-else if (!key_exists('green', $gameState))
+    $gameState['blue']['isReady'] = false;
+} else if (!key_exists('green', $gameState)) {
     $gameState['green']['userName'] = $userName;
+    $gameState['green']['isReady'] = false;
+}
 
 $mdGamesData[$gameId] = $gameState;
 $md->set('gamesData', $mdGamesData, 5 * 3600);

@@ -3,6 +3,7 @@ header("Content-Type: application/json");
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST');
 header("Access-Control-Allow-Headers: X-Requested-With");
+error_reporting(E_ERROR);
 
 $_POST = json_decode(file_get_contents("php://input"), true);
 $data = array("status" => 200);
@@ -57,30 +58,38 @@ while (time() - $req_timestamp < 15) {
     $mdGamesData = (array) $md->get('gamesData');
     $mdGameState = (array) $mdGamesData[$gameId];
 
-    if (
-        is_array($mdGameState) &&
-        is_array($gameState) &&
-        array_key_exists('turn', $gameState) &&
-        array_key_exists('turn', $mdGameState) &&
-        array_key_exists('action', $mdGameState) &&
-        array_key_exists('action', $gameState) &&
-        array_key_exists('pawns', $gameState) &&
-        array_key_exists('pawns', $mdGameState) &&
-        array_key_exists('diceValue', $gameState) &&
-        array_key_exists('diceValue', $mdGameState)
-
+    if ( //compare the 2 game states
+        arrayRecursiveDiff($mdGameState, $gameState) == array() &&
+        arrayRecursiveDiff($gameState, $mdGameState) == array()
     ) {
-        if (
-            $mdGameState['turn'] == $gameState['turn'] &&
-            $mdGameState['action'] == $gameState['action'] &&
-            $mdGameState['diceValue'] == $gameState['diceValue'] &&
-            $mdGameState['pawns'] == $gameState['pawns']
-        ) {
-            usleep(250_000);
-            continue;
-        }
+        usleep(250_000);
+        continue;
     }
     break;
 }
 $data = array('status' => 200, 'gameState' => $mdGameState);
 die(json_encode($data));
+
+
+function arrayRecursiveDiff(array $aArray1, array $aArray2)
+{
+    $aReturn = array();
+
+    foreach ($aArray1 as $mKey => $mValue) {
+        if (array_key_exists($mKey, $aArray2)) {
+            if (is_array($mValue)) {
+                $aRecursiveDiff = arrayRecursiveDiff($mValue, $aArray2[$mKey]);
+                if (count($aRecursiveDiff)) {
+                    $aReturn[$mKey] = $aRecursiveDiff;
+                }
+            } else {
+                if ($mValue != $aArray2[$mKey]) {
+                    $aReturn[$mKey] = $mValue;
+                }
+            }
+        } else {
+            $aReturn[$mKey] = $mValue;
+        }
+    }
+    return $aReturn;
+}
