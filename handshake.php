@@ -38,7 +38,7 @@ if (empty($mdUsersData)) {
     //no profiles exist
     if (empty($userToken))
         $userToken = getRandomStringRandomInt(8);
-    $md->set('usersData', array($userName => array('userToken' => $userToken)), 5 * 3600);
+    $md->set('usersData', array($userName => array('userToken' => $userToken)), 5 * 60);
     $data['status'] = 200;
     $data['userToken'] = $userToken;
     $data['message'] = "No matching profile exists, created a new one - Successful handshake.";
@@ -66,7 +66,7 @@ switch ($verifyCode) {
         //no such profile exists - create new profile
         if (empty($userToken)) $userToken = getRandomStringRandomInt(8);
         $mdUsersData[$userName] = array('userToken' => $userToken);
-        $md->set('usersData', $mdUsersData, 5 * 3600);
+        $md->set('usersData', $mdUsersData, 5 * 60);
         $data['status'] = 200;
         $data['userToken'] = $userToken;
         $data['message'] = "No matching profile exists, created a new one - Successful handshake.";

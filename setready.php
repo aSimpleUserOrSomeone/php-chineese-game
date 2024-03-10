@@ -92,7 +92,8 @@ if (
 //checking if the game can be started
 $allReady = true;
 $playerCount = 0;
-include_once('./globals.php');
+$colors = ['red', 'yellow', 'blue', 'green'];
+
 foreach ($colors as $color) {
     if (array_key_exists($color, $mdGameData)) {
         $playerCount += 1;
@@ -118,5 +119,5 @@ if ($allReady && $playerCount > 1) {
 }
 
 $mdGamesData[$gameId] = $mdGameData;
-$md->set('gamesData', $mdGamesData, 5 * 3600);
+$md->set('gamesData', $mdGamesData, 5 * 60);
 die(json_encode($data));
