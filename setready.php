@@ -118,5 +118,5 @@ if ($allReady && $playerCount > 1) {
 }
 
 $mdGamesData[$gameId] = $mdGameData;
-$md->set('gamesData', $mdGamesData);
+$md->set('gamesData', $mdGamesData, 5 * 3600);
 die(json_encode($data));
