@@ -33,9 +33,6 @@ $md = new Memcached;
 $md->addServer("localhost", 45111);
 $data = array();
 
-//TODO: Response should later return the room id for later quick in-game checks.
-//      The room id should also be stored in the correct memcached user profile
-
 $mdUsersData = $md->get('usersData');
 if (empty($mdUsersData)) {
     //no profiles exist

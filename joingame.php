@@ -57,58 +57,49 @@ foreach ($mdUsersData as $mdUserName => $userData) {
     }
 }
 
-if ($idCounter < 4) {
-    $mdUsersData[$userName]['gameId'] = $gameId;
-    $md->set('usersData', $mdUsersData, 5 * 3600);
-    $data['status'] = 200;
-    $data['message'] = "Successfully assigned new gameId.";
-    echo (json_encode($data));
-    //TODO: setup game joining to room of any state 
-    $mdGamesData = $md->get('gamesData');
-    if (!empty($mdGamesData)) {
-        if (!array_key_exists($gameId, $mdGamesData)) {
-            $initialGameState = file_get_contents("../../initialGameState.json");
-            $gameState = json_decode($initialGameState, true);
-            $gameState['red'] = $userName;
-
-            $mdGamesData[$gameId] = $gameState;
-            $md->set('gamesData', $mdGamesData, 5 * 3600);
-            die();
-        } else {
-            //game exists and free spot needs to be found
-            $gameState = $mdGamesData[$gameId];
-            if ((key_exists('red', $gameState) && $gameState['red'] == $userName) ||
-                (key_exists('yellow', $gameState) && $gameState['yellow'] == $userName) ||
-                (key_exists('blue', $gameState) && $gameState['blue'] == $userName) ||
-                (key_exists('green', $gameState) && $gameState['green'] == $userName)
-            ) {
-                //do nothing - already has a spot assigned
-            } else {
-                if (!key_exists('red', $gameState))
-                    $gameState['red'] = $userName;
-                else if (!key_exists('yellow', $gameState))
-                    $gameState['yellow'] = $userName;
-                else if (!key_exists('blue', $gameState))
-                    $gameState['blue'] = $userName;
-                else if (!key_exists('green', $gameState))
-                    $gameState['green'] = $userName;
-
-                $mdGamesData[$gameId] = $gameState;
-                $md->set('gamesData', $mdGamesData, 5 * 3600);
-            }
-            die();
-        }
-    } else {
-        $initialGameState = file_get_contents("../../initialGameState.json");
-        $gameState = json_decode($initialGameState, true);
-        $gameState['red'] = $userName;
-
-        $mdGamesData[$gameId] = $gameState;
-        $md->set('gamesData', $mdGamesData, 5 * 3600);
-        die();
-    }
-} else {
+if ($idCounter >= 4) {
     $data['status'] = 400;
     $data['message'] = "Too many users asigned to the gameId";
     die(json_encode($data));
 }
+
+$mdUsersData[$userName]['gameId'] = $gameId;
+$md->set('usersData', $mdUsersData, 5 * 3600);
+$data['status'] = 200;
+$data['message'] = "Successfully assigned new gameId.";
+echo (json_encode($data));
+
+$mdGamesData = $md->get('gamesData');
+if (empty($mdGamesData) || !array_key_exists($gameId, $mdGamesData)) {
+    $initialGameState = file_get_contents("../../initialGameState.json");
+    $gameState = json_decode($initialGameState, true);
+    $gameState['red']['userName'] = $userName;
+
+    $mdGamesData[$gameId] = $gameState;
+    $md->set('gamesData', $mdGamesData, 5 * 3600);
+    die();
+}
+
+//game exists and free spot needs to be found
+$gameState = $mdGamesData[$gameId];
+if ((key_exists('red', $gameState) && $gameState['red']['userName'] == $userName) ||
+    (key_exists('yellow', $gameState) && $gameState['yellow']['userName'] == $userName) ||
+    (key_exists('blue', $gameState) && $gameState['blue']['userName'] == $userName) ||
+    (key_exists('green', $gameState) && $gameState['green']['userName'] == $userName)
+) {
+    //do nothing - already has a spot assigned
+    die();
+}
+
+if (!key_exists('red', $gameState))
+    $gameState['red']['userName'] = $userName;
+else if (!key_exists('yellow', $gameState))
+    $gameState['yellow']['userName'] = $userName;
+else if (!key_exists('blue', $gameState))
+    $gameState['blue']['userName'] = $userName;
+else if (!key_exists('green', $gameState))
+    $gameState['green']['userName'] = $userName;
+
+$mdGamesData[$gameId] = $gameState;
+$md->set('gamesData', $mdGamesData, 5 * 3600);
+die();

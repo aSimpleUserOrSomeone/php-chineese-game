@@ -46,44 +46,28 @@ if (verifyToken($mdUsersData, $userName, $userToken) != 201) {
 
 
 $req_timestamp = time();
+$gameId = strval($mdUsersData[$userName]['gameId']);
 $mdGamesData = $md->get('gamesData');
-if (!empty($mdGamesData)) { // aaa is to be replaced by game id 
-    if (!array_key_exists('aaa', $mdGamesData)) {
-
-        $initialGameState = file_get_contents("../../initialGameState.json");
-        $gameState = json_decode($initialGameState, true);
-        $gameState['red'] = $userName;
-
-        $mdGamesData['aaa'] = $gameState;
-        $md->set('gamesData', $mdGamesData, 5 * 3600);
-        die(json_encode($gameState));
-    }
-} else {
-
-    $initialGameState = file_get_contents("../../initialGameState.json");
-    $gameState = json_decode($initialGameState, true);
-    $gameState['red'] = $userName;
-
-    $mdGamesData['aaa'] = $gameState;
-    $md->set('gamesData', $mdGamesData, 5 * 3600);
-    die(json_encode($gameState));
+if (empty($mdGamesData) || !array_key_exists($gameId, $mdGamesData)) {
+    $data = array('status' => 400, 'message' => "This game doesn't exist. Try joining the game first.");
+    die(json_encode($data));
 }
 
-while (time() - $req_timestamp < 5) {
+while (time() - $req_timestamp < 15) {
     $mdGamesData = (array) $md->get('gamesData');
-    $mdGameState = (array) $mdGamesData['aaa'];
+    $mdGameState = (array) $mdGamesData[$gameId];
 
     if (
         is_array($mdGameState) &&
         is_array($gameState) &&
+        array_key_exists('turn', $gameState) &&
         array_key_exists('turn', $mdGameState) &&
         array_key_exists('action', $mdGameState) &&
-        array_key_exists('diceValue', $mdGameState) &&
-        array_key_exists('pawns', $mdGameState) &&
-        array_key_exists('turn', $gameState) &&
         array_key_exists('action', $gameState) &&
+        array_key_exists('pawns', $gameState) &&
+        array_key_exists('pawns', $mdGameState) &&
         array_key_exists('diceValue', $gameState) &&
-        array_key_exists('pawns', $gameState)
+        array_key_exists('diceValue', $mdGameState)
 
     ) {
         if (
@@ -96,7 +80,7 @@ while (time() - $req_timestamp < 5) {
             continue;
         }
     }
-
-    die(json_encode($mdGameState));
+    break;
 }
-die(json_encode($gameState));
+$data = array('status' => 200, 'gameState' => $mdGameState);
+die(json_encode($data));
