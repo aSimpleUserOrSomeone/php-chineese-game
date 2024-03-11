@@ -64,7 +64,7 @@ if ($idCounter >= 4) {
 }
 
 $mdUsersData[$userName]['gameId'] = $gameId;
-$md->set('usersData', $mdUsersData, 5 * 60);
+$md->set('usersData', $mdUsersData, 3600);
 $data['status'] = 200;
 $data['message'] = "Successfully assigned new gameId.";
 echo (json_encode($data));
@@ -77,7 +77,7 @@ if (empty($mdGamesData) || !array_key_exists($gameId, $mdGamesData)) {
     $gameState['red']['isReady'] = false;
 
     $mdGamesData[$gameId] = $gameState;
-    $md->set('gamesData', $mdGamesData, 5 * 60);
+    $md->set('gamesData', $mdGamesData, 3600);
     die();
 }
 
@@ -107,5 +107,5 @@ if (!key_exists('red', $gameState)) {
 }
 
 $mdGamesData[$gameId] = $gameState;
-$md->set('gamesData', $mdGamesData, 5 * 60);
+$md->set('gamesData', $mdGamesData, 3600);
 die();

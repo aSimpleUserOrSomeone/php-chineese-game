@@ -9,7 +9,7 @@ $data = array("status" => 200);
 $gameState = array();
 if (!isset($_POST['action']) || empty($_POST['action'])) {
     $data["status"] = 400;
-} else if ($_POST['action'] == 'move' && (!isset($_POST['position']) || empty($_POST['position']))) {
+} else if ($_POST['action'] == 'move' && !isset($_POST['position'])) {
     $data["status"] = 400;
 } else if (!isset($_POST['userName']) || empty($_POST['userName'])) {
     $data["status"] = 401;
@@ -18,7 +18,7 @@ if (!isset($_POST['action']) || empty($_POST['action'])) {
 }
 
 if ($data['status'] == 400) {
-    $data['message'] = "Missing gameId data";
+    $data['message'] = "Missing required data";
     die(json_encode($data));
 } else if ($data['status'] == 401) {
     $data['message'] = "Missing verification data";
@@ -87,9 +87,9 @@ if ($action == 'dice') {
         die(json_encode($data));
     }
 
-    //TODO: Check if has any valid move after throwing dice! 
-
-    $diceValue = rand(1, 6);
+    //TODO: Make random aggain
+    // $diceValue = rand(1, 6);
+    $diceValue = 6;
     $mdGameData['diceValue'] = $diceValue;
     $mdGameData['action'] = 'move';
 
@@ -99,13 +99,14 @@ if ($action == 'dice') {
         $mdGameData['turn'] = getNextPlayerColor($playerColor, $mdGameData);
     }
     $mdGamesData[$gameId] = $mdGameData;
-    $md->set('gamesData', $mdGamesData, 5 * 60);
+    $md->set('gamesData', $mdGamesData, 3600);
 
 
     $data['status'] = 200;
     $data['message'] = "Player rolled dice.";
     die(json_encode($data));
 } else if ($action == 'move') {
+
     if (!array_key_exists('action', $mdGameData) || $mdGameData['action'] != 'move') {
         $data['status'] = 400;
         $data['message'] = "It's not time to move!";
@@ -131,7 +132,79 @@ if ($action == 'dice') {
     }
 
     $targetDestination = $position + $mdGameData['diceValue'];
-    if ($position < 40 && $targetDestination < 40) { //check regular move
+    if ($position < 56) { //check if entering ending fields
+        //calculate the move
+        $hasEntered = false;
+        switch ($playerColor) {
+            case 'red':
+                if ($position < 40 && $targetDestination >= 40) {
+                    $hasEntered = true;
+                    $targetDestination += 0;
+                    //check if exceeding own end fields
+                    $targetDestination = calculateExceedEnd(43, $position, $targetDestination, $mdGameData['pawns']);
+                } else if ($position >= 40) {
+                    $hasEntered = true;
+                    $targetDestination = calculateExceedEnd(43, $position, $targetDestination, $mdGameData['pawns']);
+                }
+                break;
+            case 'yellow':
+                if ($position < 10 && $targetDestination >= 10) {
+                    $hasEntered = true;
+                    $targetDestination += 34;
+                    //check if exceeding own end fields
+                    $targetDestination = calculateExceedEnd(47, $position, $targetDestination, $mdGameData['pawns']);
+                } else if ($position >= 44) {
+                    $hasEntered = true;
+                    $targetDestination = calculateExceedEnd(47, $position, $targetDestination, $mdGameData['pawns']);
+                }
+                break;
+            case 'blue':
+                if ($position < 20 && $targetDestination >= 20) {
+                    $hasEntered = true;
+                    $targetDestination += 28;
+                    //check if exceeding own end fields
+                    $targetDestination = calculateExceedEnd(51, $position, $targetDestination, $mdGameData['pawns']);
+                } else if ($position >= 48) {
+                    $hasEntered = true;
+                    $targetDestination = calculateExceedEnd(51, $position, $targetDestination, $mdGameData['pawns']);
+                }
+                break;
+            case 'green':
+                if ($position < 30 && $targetDestination >= 30) {
+                    $hasEntered = true;
+                    $targetDestination += 22;
+                    //check if exceeding own end fields
+                    $targetDestination = calculateExceedEnd(55, $position, $targetDestination, $mdGameData['pawns']);
+                } else if ($position >= 52) {
+                    $hasEntered = true;
+                    $targetDestination = calculateExceedEnd(55, $position, $targetDestination, $mdGameData['pawns']);
+                }
+                break;
+        }
+
+        if ($hasEntered) {
+            //execute the move
+            $mdGameData['pawns'] = movePawn($position, $targetDestination, $mdGameData['pawns']);
+
+            //checking if game is over
+            $winningPlayer = hasPlayerWon($mdGameData['pawns']);
+            if ($winningPlayer != null) {
+                //someone won
+                $mdGameData['action'] = 'win';
+            } else {
+                $mdGameData['turn'] = getNextPlayerColor($playerColor, $mdGameData);
+                $mdGameData['action'] = 'dice';
+            }
+
+            $mdGamesData[$gameId] = $mdGameData;
+            $md->set('gamesData', $mdGamesData, 3600);
+            $data['status'] = 200;
+            $data['message'] = "Successfull move.";
+            die(json_encode($data));
+        }
+    }
+    if ($position < 40) { //check regular move
+        if ($targetDestination >= 40) $targetDestination -= 40;
         $targetPawn = getPosPawn($targetDestination, $mdGameData['pawns']);
         if ($targetPawn == null) {
             $mdGameData['pawns'] = movePawn($position, $targetDestination, $mdGameData['pawns']);
@@ -144,50 +217,24 @@ if ($action == 'dice') {
             $mdGameData['pawns'] = resetPawn($targetDestination, $targetPawn['color'], $mdGameData['pawns']);
             $mdGameData['pawns'] = movePawn($position, $targetDestination, $mdGameData['pawns']);
         }
-        //TODO: HERE NEXT PLAYER TURN !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+        $winningPlayer = hasPlayerWon($mdGameData['pawns']);
+        if ($winningPlayer != null) {
+            //someone won
+            $mdGameData['action'] = 'win';
+        } else {
+            $mdGameData['turn'] = getNextPlayerColor($playerColor, $mdGameData);
+            $mdGameData['action'] = 'dice';
+        }
+
         $mdGamesData[$gameId] = $mdGameData;
-        $md->set('gamesData', $mdGamesData, 5 * 60);
+        $md->set('gamesData', $mdGamesData,  3600);
 
         $data['status'] = 200;
         $data['message'] = "Successful move.";
         die(json_encode($data));
-    } else if ($position < 56) { //check if entering starting fields
-        //calculate the move
-        switch ($playerColor) {
-            case 'red':
-                if ($position < 40 && $targetDestination >= 40)
-                    $targetDestination += 0;
-                //check if exceeding own end fields
-                $targetDestination = calculateExceedEnd(43, $position, $targetDestination, $mdGameData['pawns']);
-                break;
-            case 'yellow':
-                if ($position < 10 && $targetDestination >= 10)
-                    $targetDestination += 34;
-                //check if exceeding own end fields
-                $targetDestination = calculateExceedEnd(47, $position, $targetDestination, $mdGameData['pawns']);
-                break;
-            case 'blue':
-                if ($position < 20 && $targetDestination >= 20)
-                    $targetDestination += 28;
-                //check if exceeding own end fields
-                $targetDestination = calculateExceedEnd(51, $position, $targetDestination, $mdGameData['pawns']);
-                break;
-            case 'red':
-                if ($position < 30 && $targetDestination >= 30)
-                    $targetDestination += 22;
-                //check if exceeding own end fields
-                $targetDestination = calculateExceedEnd(55, $position, $targetDestination, $mdGameData['pawns']);
-                break;
-        }
-        //execute the move
-        $mdGameData['pawns'] = movePawn($position, $targetDestination, $mdGameData);
-        $mdGamesData[$gameId] = $mdGameData;
-        $md->set('gamesData', $mdGamesData, 5 * 60);
-        $data['status'] = 200;
-        $data['message'] = "Successfull move.";
-        die(json_encode($data));
-    } else if ($position < 72) { //check coming out of base
-        if (!($diceValue == 1 || $diceValue == 6)) {
+    } else  if ($position < 72) { //check coming out of base
+        if (!($mdGameData['diceValue'] == 1 || $mdGameData['diceValue'] == 6)) {
             $data['status'] = 400;
             $data['message'] = "Can't move from start fields if dice not 1 or 6.";
             die(json_encode($data));
@@ -207,7 +254,6 @@ if ($action == 'dice') {
                 $deployField = 30;
                 break;
         }
-
         $targetPawn = getPosPawn($deployField, $mdGameData['pawns']);
         if ($targetPawn == null) {
             $mdGameData['pawns'] = movePawn($position, $deployField, $mdGameData['pawns']);
@@ -216,9 +262,26 @@ if ($action == 'dice') {
             $data['message'] = "Can't move on your own pawn.";
             die(json_encode($data));
         } else if ($targetPawn['color'] != $playerColor) {
-            $mdGameData['pawns'] = resetPawn($deployField, $playerColor, $mdGameData['pawns']);
+            $mdGameData['pawns'] = resetPawn($deployField, $targetPawn['color'], $mdGameData['pawns']);
             $mdGameData['pawns'] = movePawn($position, $deployField, $mdGameData['pawns']);
         }
+
+        //checking if game is over
+        $winningPlayer = hasPlayerWon($mdGameData['pawns']);
+        if ($winningPlayer != null) {
+            //someone won
+            $mdGameData['action'] = 'win';
+        } else {
+            $mdGameData['turn'] = getNextPlayerColor($playerColor, $mdGameData);
+            $mdGameData['action'] = 'dice';
+        }
+
+        //execute the move
+        $mdGamesData[$gameId] = $mdGameData;
+        $md->set('gamesData', $mdGamesData, 3600);
+        $data['status'] = 200;
+        $data['message'] = "Successful move.";
+        die(json_encode($data));
     }
 } else {
     $data['status'] = 400;
@@ -238,22 +301,26 @@ function getPosPawn(int $pos, $pawns)
 
 function calculateExceedEnd($endfieldEnd, $position, $target, $pawns)
 {
-    if ($target > $endfieldEnd) {
+    if ($target > $endfieldEnd)
         $target = $endfieldEnd;
-        while ($target >= $position) {
-            if (getPosPawn($target, $pawns) == null)
-                break; //found an empty spot on the endfields    
-            $target -= 1;
-        }
+
+    while ($target > $position) {
+        if (getPosPawn($target, $pawns) == null)
+            break; //found an empty spot on the endfields    
+        $target -= 1;
+    }
+
+    if ($target < $endfieldEnd - 3) {
+        $target = $position;
     }
     return $target;
 }
 
 function movePawn(int $from, int $to, $pawns)
 {
-    foreach ($pawns as $pawn) {
+    foreach ($pawns as $i => $pawn) {
         if ($pawn['pos'] == $from) {
-            $pawn['pos'] = $to;
+            $pawns[$i]['pos'] = $to;
             break;
         }
     }
@@ -315,4 +382,39 @@ function getNextPlayerColor(string $playerColor, $gameState): string
     }
 
     return $targetPlayer;
+}
+
+function hasPlayerWon(array $pawns): string | null
+{
+    $redWP = 0;
+    $yellowWP = 0;
+    $blueWP = 0;
+    $greenWP = 0;
+    foreach ($pawns as $pawn) {
+        if ($pawn['pos'] >= 40 && $pawn['pos'] < 56) {
+            switch ($pawn['color']) {
+                case 'red':
+                    $redWP += 1;
+                    break;
+                case 'red':
+                    $yellowWP += 1;
+                    break;
+                case 'red':
+                    $blueWP += 1;
+                    break;
+                case 'red':
+                    $greenWP += 1;
+                    break;
+            }
+        }
+    }
+    if ($redWP == 4)
+        return 'red';
+    if ($yellowWP == 4)
+        return 'yellow';
+    if ($blueWP == 4)
+        return 'blue';
+    if ($greenWP == 4)
+        return 'green';
+    return null;
 }
