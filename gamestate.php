@@ -31,7 +31,7 @@ $md = new Memcached;
 $md->addServer("localhost", 45111);
 $data = array();
 
-require_once('./verifyToken.php');
+require_once('./utils.php');
 
 $mdUsersData = $md->get('usersData');
 if (empty($mdUsersData)) {
@@ -54,9 +54,32 @@ if (empty($mdGamesData) || !array_key_exists($gameId, $mdGamesData)) {
     die(json_encode($data));
 }
 
+$playerColor;
+foreach ($GLOBALS['colors'] as $color) {
+    if (array_key_exists($color, $mdGamesData[$gameId]) && $mdGamesData[$gameId][$color]['userName'] == $userName) {
+        $playerColor = $color;
+        break;
+    }
+}
+
 while (time() - $req_timestamp < 15) {
-    $mdGamesData = (array) $md->get('gamesData');
-    $mdGameState = (array) $mdGamesData[$gameId];
+    $mdGamesData = $md->get('gamesData');
+    $mdGameState = $mdGamesData[$gameId];
+
+    if (
+        array_key_exists('actionTimestamp', $mdGameState) &&
+        (time() - $mdGameState['actionTimestamp'] > 450) &&
+        array_key_exists($mdGameState['turn'], $mdGameState)
+    ) {
+        //player is afk kick them
+        removeUser($mdGameState[$mdGameState['turn']]['userName'], $md, $gameId);
+        $mdGamesData =  $md->get('gamesData');
+        $mdGameState =  $mdGamesData[$gameId];
+        $mdGameState['turn'] = getNextPlayerColor($playerColor, $mdGameState);
+        $mdGameState['action'] = 'dice';
+        $mdGamesData[$gameId] = $mdGameState;
+        $md->set('gamesData', $mdGamesData, 3600);
+    }
 
     if ( //compare the 2 game states
         arrayRecursiveDiff($mdGameState, $gameState) == array() &&

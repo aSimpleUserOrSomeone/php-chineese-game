@@ -32,7 +32,7 @@ $md = new Memcached;
 $md->addServer("localhost", 45111);
 $data = array();
 
-require_once('./verifyToken.php');
+require_once('./utils.php');
 
 $mdUsersData = $md->get('usersData');
 if (empty($mdUsersData)) {

@@ -34,7 +34,7 @@ $md->addServer("localhost", 45111);
 $data = array();
 $colors = ['red', 'yellow', 'blue', 'green'];
 
-require_once('./verifyToken.php');
+require_once('./utils.php');
 
 $mdUsersData = $md->get('usersData');
 if (empty($mdUsersData)) {
@@ -92,6 +92,7 @@ if ($action == 'dice') {
     $diceValue = 6;
     $mdGameData['diceValue'] = $diceValue;
     $mdGameData['action'] = 'move';
+    $mdGameData['actionTimestamp'] = time();
 
     if (hasValidMove($diceValue, $mdGameData['pawns'], $playerColor)) {
         $mdGameData['action'] = 'move';
@@ -185,6 +186,7 @@ if ($action == 'dice') {
         if ($hasEntered) {
             //execute the move
             $mdGameData['pawns'] = movePawn($position, $targetDestination, $mdGameData['pawns']);
+            $mdGameData['actionTimestamp'] = time();
 
             //checking if game is over
             $winningPlayer = hasPlayerWon($mdGameData['pawns']);
@@ -226,7 +228,7 @@ if ($action == 'dice') {
             $mdGameData['turn'] = getNextPlayerColor($playerColor, $mdGameData);
             $mdGameData['action'] = 'dice';
         }
-
+        $mdGameData['actionTimestamp'] = time();
         $mdGamesData[$gameId] = $mdGameData;
         $md->set('gamesData', $mdGamesData,  3600);
 
@@ -275,7 +277,7 @@ if ($action == 'dice') {
             $mdGameData['turn'] = getNextPlayerColor($playerColor, $mdGameData);
             $mdGameData['action'] = 'dice';
         }
-
+        $mdGameData['actionTimestamp'] = time();
         //execute the move
         $mdGamesData[$gameId] = $mdGameData;
         $md->set('gamesData', $mdGamesData, 3600);
@@ -366,23 +368,6 @@ function hasValidMove(int $diceValue, array $pawns, string $color): bool
     return false;
 }
 
-function getNextPlayerColor(string $playerColor, $gameState): string
-{
-    $colors = ['red', 'yellow', 'blue', 'green'];
-    $targetPlayer = '';
-    $colorIndex = array_search($playerColor, $colors);
-    $i = $colorIndex + 1;
-    while (true) {
-        if ($i >= 4) $i -= 4;
-
-        if (array_key_exists($colors[$i], $gameState))
-            return $colors[$i];
-
-        $i += 1;
-    }
-
-    return $targetPlayer;
-}
 
 function hasPlayerWon(array $pawns): string | null
 {

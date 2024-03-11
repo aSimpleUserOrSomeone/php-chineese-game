@@ -17,7 +17,7 @@ if (isset($_POST['userToken']) && !empty($_POST['userToken'])) {
     $userToken = $_POST['userToken'];
 }
 
-require_once('verifyToken.php');
+require_once('utils.php');
 function getRandomStringRandomInt($length = 16)
 {
     $stringSpace = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';

@@ -32,7 +32,7 @@ $md = new Memcached;
 $md->addServer("localhost", 45111);
 $data = array();
 
-require_once('./verifyToken.php');
+require_once('./utils.php');
 
 $mdUsersData = $md->get('usersData');
 if (empty($mdUsersData)) {
@@ -70,7 +70,25 @@ $data['message'] = "Successfully assigned new gameId.";
 echo (json_encode($data));
 
 $mdGamesData = $md->get('gamesData');
-if (empty($mdGamesData) || !array_key_exists($gameId, $mdGamesData)) {
+if ((empty($mdGamesData) || !array_key_exists($gameId, $mdGamesData)) || //nie ma tej gry lub w ogole
+    (array_key_exists($gameId, $mdGamesData) && $mdGamesData[$gameId]['action'] == 'win') // lub gra jest po wygranej
+) {
+    $initialGameState = file_get_contents("../../initialGameState.json");
+    $gameState = json_decode($initialGameState, true);
+    $gameState['red']['userName'] = $userName;
+    $gameState['red']['isReady'] = false;
+
+    $mdGamesData[$gameId] = $gameState;
+    $md->set('gamesData', $mdGamesData, 3600);
+    die();
+}
+
+if (
+    !array_key_exists('red', $mdGamesData[$gameId]) &&
+    !array_key_exists('yellow', $mdGamesData[$gameId]) &&
+    !array_key_exists('blue', $mdGamesData[$gameId]) &&
+    !array_key_exists('green', $mdGamesData[$gameId]) //gra jest bez graczy czyli do resetu
+) {
     $initialGameState = file_get_contents("../../initialGameState.json");
     $gameState = json_decode($initialGameState, true);
     $gameState['red']['userName'] = $userName;
